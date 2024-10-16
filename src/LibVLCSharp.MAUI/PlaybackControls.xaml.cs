@@ -85,7 +85,7 @@ namespace LibVLCSharp.MAUI
                 castRenderersDiscoverer.CastAvailableChanged += (sender, e) => UpdateCastAvailability();
                 castRenderersDiscoverer.Enabled = IsCastButtonVisible;
                 var seekBarManager = Manager.Get<SeekBarManager>();
-                seekBarManager.PositionChanged += (sender, e) => UpdateTime();
+                seekBarManager.PositionChanged += SeekBarManager_PositionChanged;
                 seekBarManager.SeekableChanged += (sender, e) => UpdateSeekAvailability();
                 var bufferingProgressNotifier = Manager.Get<BufferingProgressNotifier>();
                 bufferingProgressNotifier.Buffering += (sender, e) => OnBuffering();
@@ -100,6 +100,14 @@ namespace LibVLCSharp.MAUI
             catch (Exception ex)
             {
                 ShowErrorMessageBox(ex);
+            }
+        }
+
+        private void SeekBarManager_PositionChanged(object? sender, EventArgs e)
+        {
+            if (!Manager.Get<SeekBarManager>().IsDragging)
+            {
+                UpdateTime();
             }
         }
 
@@ -772,6 +780,7 @@ namespace LibVLCSharp.MAUI
             {
                 Manager.Get<SeekBarManager>().SeekBarMaximum = SeekBar.Maximum;
                 SeekBar.DragCompleted += SeekBar_DragCompleted;
+                SeekBar.DragStarted += SeekBar_DragStarted;
                 SeekBar.ValueChanged += SeekBar_ValueChanged;
             }
 
@@ -800,18 +809,38 @@ namespace LibVLCSharp.MAUI
         }
 
         /// <summary>
-        /// Handles the event when the user completes dragging the seek bar.
+        /// Event handler for when dragging the seek bar completes.
+        /// Updates the position to the final value set by the user.
         /// </summary>
         private void SeekBar_DragCompleted(object? sender, EventArgs e)
         {
-            var seekBarManager = Manager.Get<SeekBarManager>();
-            if (seekBarManager != null && SeekBar != null)
+            Manager.Get<SeekBarManager>().IsDragging = false;
+
+            if (SeekBar != null)
             {
                 Show();
+                Manager.Get<SeekBarManager>().SetSeekBarPosition(SeekBar.Value);
+            }
+        }
 
-                seekBarManager.SetSeekBarPosition(SeekBar.Value);
+        /// <summary>
+        /// Event handler for when dragging the seek bar starts.
+        /// Sets the dragging state to true.
+        /// </summary>
+        private void SeekBar_DragStarted(object? sender, EventArgs e)
+        {
+            Manager.Get<SeekBarManager>().IsDragging = true;
+        }
 
-                UpdateTime();
+        /// <summary>
+        /// Event handler for when the seek bar value changes while dragging.
+        /// Updates the displayed time estimation during the dragging process.
+        /// </summary>
+        private void SeekBar_ValueChanged(object? sender, ValueChangedEventArgs e)
+        {
+            if (Manager.Get<SeekBarManager>().IsDragging)
+            {
+                Show();
             }
         }
 
@@ -1195,12 +1224,6 @@ namespace LibVLCSharp.MAUI
                 VisualStateManager.GoToState(castButton,
                     Manager.Get<CastRenderersDiscoverer>().CastAvailable ? CastAvailableState : CastUnavailableState);
             }
-        }
-
-        private void SeekBar_ValueChanged(object? sender, ValueChangedEventArgs e)
-        {
-            Show();
-            Manager.Get<SeekBarManager>().SetSeekBarPosition(e.NewValue);
         }
 
         private void UpdateTime()
