@@ -820,6 +820,7 @@ namespace LibVLCSharp.MAUI
             {
                 Show();
                 Manager.Get<SeekBarManager>().SetSeekBarPosition(SeekBar.Value);
+                UpdateTime();
             }
         }
 
